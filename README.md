@@ -4,13 +4,15 @@ Auto-rename downloaded journal PDFs using a canonical filename format:
 
 `FirstAuthor-ShortTitle-Year.pdf`
 
-## What it does (MVP)
+## What it does
 
 - Scans a folder for PDFs
 - Extracts metadata from embedded PDF fields first
 - Falls back to text extraction + DOI lookup via Crossref
 - Renames files safely (collision-aware)
 - Supports dry-run mode
+- Writes an undo log for all applied renames
+- Optional watch mode for continuously renaming new downloads
 
 ## Quick start
 
@@ -19,8 +21,40 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-python -m indexa.cli scan ~/Downloads --dry-run
-python -m indexa.cli scan ~/Downloads --apply
+# Preview
+python -m indexa.cli scan ~/Downloads/indexa-test --dry-run
+
+# Apply renames
+python -m indexa.cli scan ~/Downloads/indexa-test --apply
+```
+
+## Commands
+
+### 1) Scan once
+
+```bash
+python -m indexa.cli scan <folder> [--apply] [--title-words 8] [--undo-log .indexa-renames.jsonl]
+```
+
+### 2) Watch folder continuously
+
+```bash
+python -m indexa.cli watch <folder> --apply --interval 3
+```
+
+Stop with `Ctrl+C`.
+
+### 3) Undo renames
+
+```bash
+# Preview undo for all logged renames
+python -m indexa.cli undo <folder> --dry-run
+
+# Undo last 5 renames
+python -m indexa.cli undo <folder> --steps 5 --apply
+
+# Undo all renames in the log
+python -m indexa.cli undo <folder> --apply
 ```
 
 ## Filename rule
@@ -29,8 +63,6 @@ Default template:
 
 `{first_author_last}-{short_title}-{year}.pdf`
 
-Sanitization removes filesystem-hostile characters and truncates long names.
+The `--title-words` flag controls how many title words are kept (default: `8`).
 
-## Status
-
-Early prototype scaffold.
+Sanitization removes filesystem-hostile characters and truncates long tokens.

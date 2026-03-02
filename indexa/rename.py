@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import re
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -48,9 +51,6 @@ def _extract_doi_from_text(text: str) -> Optional[str]:
 
 
 def _extract_filename_hints(pdf_path: Path) -> tuple[Optional[str], Optional[str]]:
-    """Try to recover year/title from raw filename like:
-    2021-Recent trends in crowd analysis A review.pdf
-    """
     stem = pdf_path.stem.replace("_", " ")
 
     year = None
@@ -68,7 +68,6 @@ def _extract_filename_hints(pdf_path: Path) -> tuple[Optional[str], Optional[str
 
 
 def _extract_title_from_text(text: str) -> Optional[str]:
-    # Heuristic: first substantial non-junk line in the first page
     for raw in text.splitlines()[:40]:
         line = re.sub(r"\s+", " ", raw).strip()
         if not line:
@@ -78,7 +77,6 @@ def _extract_title_from_text(text: str) -> Optional[str]:
         if re.search(r"\b(doi|abstract|keywords|introduction)\b", line, re.I):
             continue
         if re.fullmatch(r"[A-Z\s]{8,}", line):
-            # all-caps headers are often venue metadata
             continue
         return line
     return None
@@ -90,7 +88,6 @@ def _author_needs_upgrade(author: Optional[str]) -> bool:
     a = str(author).strip()
     if not a:
         return True
-    # One long token often means mashed full-name metadata, not surname
     if len(a.split()) == 1 and len(a) >= 14:
         return True
     return False
@@ -158,13 +155,11 @@ def _first_author_last(author: Optional[str]) -> str:
 
     a = re.sub(r"\s+", " ", str(author)).strip()
 
-    # Common multi-author separators in PDF metadata
     if " and " in a:
         a = a.split(" and ", 1)[0].strip()
     if ";" in a:
         a = a.split(";", 1)[0].strip()
 
-    # If metadata is like "Last, First", prefer Last but still normalize it.
     if "," in a:
         left, right = [x.strip() for x in a.split(",", 1)]
         if left:
@@ -173,9 +168,9 @@ def _first_author_last(author: Optional[str]) -> str:
     return _name_token_last(a)
 
 
-def _build_filename(author: Optional[str], title: Optional[str], year: Optional[str]) -> str:
+def _build_filename(author: Optional[str], title: Optional[str], year: Optional[str], title_words: int = 8) -> str:
     author_last = _first_author_last(author)
-    title_short = _short_title(title or "Untitled")
+    title_short = _short_title(title or "Untitled", max_words=title_words)
     year_part = year or "n.d"
     return f"{_sanitize(author_last)}-{_sanitize(title_short)}-{_sanitize(year_part)}.pdf"
 
@@ -193,7 +188,80 @@ def _dedupe_path(target: Path) -> Path:
         i += 1
 
 
-def scan_and_rename(folder: str, dry_run: bool = True) -> None:
+def _resolve_undo_log(base: Path, undo_log_path: str) -> Path:
+    p = Path(undo_log_path).expanduser()
+    if not p.is_absolute():
+        p = base / p
+    return p
+
+
+def _write_undo_log(log_path: Path, src: Path, dst: Path) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "from": str(src),
+        "to": str(dst),
+    }
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def process_file(
+    pdf: Path,
+    dry_run: bool = True,
+    title_words: int = 8,
+    undo_log_path: str = ".indexa-renames.jsonl",
+) -> bool:
+    base = pdf.parent
+    log_path = _resolve_undo_log(base, undo_log_path)
+
+    author, title, year = _extract_pdf_metadata(pdf)
+    fname_year, fname_title = _extract_filename_hints(pdf)
+    first_page_text = _extract_first_page_text(pdf)
+
+    year = fname_year or year
+
+    if not title or title.strip().lower() in {"untitled", "untitled document"}:
+        title = fname_title or _extract_title_from_text(first_page_text)
+
+    doi = _extract_doi_from_text(first_page_text)
+    if doi:
+        a2, t2, y2 = _crossref_lookup_doi(doi)
+        if _author_needs_upgrade(author):
+            author = a2 or author
+        else:
+            author = author or a2
+        title = title or t2
+        year = year or y2
+
+    if (_author_needs_upgrade(author)) and title:
+        a3, t3, y3 = _crossref_lookup_title(title)
+        author = a3 or author
+        if title.lower() in {"untitled", "unknown"}:
+            title = t3 or title
+        year = year or y3
+
+    new_name = _build_filename(author, title, year, title_words=title_words)
+    target = _dedupe_path(pdf.with_name(new_name))
+
+    if target.name == pdf.name:
+        print(f"SKIP  {pdf.name}")
+        return False
+
+    print(f"{'PLAN' if dry_run else 'MOVE'}  {pdf.name} -> {target.name}")
+    if not dry_run:
+        src = pdf.resolve()
+        pdf.rename(target)
+        _write_undo_log(log_path, src, target.resolve())
+    return True
+
+
+def scan_and_rename(
+    folder: str,
+    dry_run: bool = True,
+    title_words: int = 8,
+    undo_log_path: str = ".indexa-renames.jsonl",
+) -> None:
     base = Path(folder).expanduser().resolve()
     pdfs = sorted(base.glob("*.pdf"))
 
@@ -202,43 +270,70 @@ def scan_and_rename(folder: str, dry_run: bool = True) -> None:
         return
 
     for pdf in pdfs:
-        author, title, year = _extract_pdf_metadata(pdf)
-        fname_year, fname_title = _extract_filename_hints(pdf)
-        first_page_text = _extract_first_page_text(pdf)
+        process_file(pdf, dry_run=dry_run, title_words=title_words, undo_log_path=undo_log_path)
 
-        # Year: prefer filename year over PDF creation year (often wrong for downloaded copies)
-        year = fname_year or year
 
-        if not title or title.strip().lower() in {"untitled", "untitled document"}:
-            title = fname_title or _extract_title_from_text(first_page_text)
+def undo_renames(
+    folder: str,
+    undo_log_path: str = ".indexa-renames.jsonl",
+    steps: int = 0,
+    dry_run: bool = True,
+) -> None:
+    base = Path(folder).expanduser().resolve()
+    log_path = _resolve_undo_log(base, undo_log_path)
 
-        # DOI lookup (best quality metadata)
-        doi = _extract_doi_from_text(first_page_text)
-        if doi:
-            a2, t2, y2 = _crossref_lookup_doi(doi)
-            if _author_needs_upgrade(author):
-                author = a2 or author
-            else:
-                author = author or a2
-            title = title or t2
-            year = year or y2
+    if not log_path.exists():
+        print(f"No undo log found at {log_path}")
+        return
 
-        # Title-only lookup as fallback when author still missing
-        if (_author_needs_upgrade(author)) and title:
-            a3, t3, y3 = _crossref_lookup_title(title)
-            author = a3 or author
-            # keep local title unless it's weak
-            if title.lower() in {"untitled", "unknown"}:
-                title = t3 or title
-            year = year or y3
+    lines = [ln for ln in log_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    if not lines:
+        print("Undo log is empty.")
+        return
 
-        new_name = _build_filename(author, title, year)
-        target = _dedupe_path(pdf.with_name(new_name))
+    entries = [json.loads(ln) for ln in lines]
+    to_undo = entries[-steps:] if steps and steps > 0 else entries
 
-        if target.name == pdf.name:
-            print(f"SKIP  {pdf.name}")
+    undone = 0
+    for row in reversed(to_undo):
+        src = Path(row["to"])  # current location
+        dst = Path(row["from"])  # original location
+        if not src.exists():
+            print(f"MISS  {src} (already moved/missing)")
             continue
-
-        print(f"{'PLAN' if dry_run else 'MOVE'}  {pdf.name} -> {target.name}")
+        if dst.exists():
+            dst = _dedupe_path(dst)
+        print(f"{'PLAN' if dry_run else 'UNDO'}  {src.name} -> {dst.name}")
         if not dry_run:
-            pdf.rename(target)
+            src.rename(dst)
+            undone += 1
+
+    if not dry_run and undone:
+        keep = entries[: len(entries) - len(to_undo)] if steps and steps > 0 else []
+        with log_path.open("w", encoding="utf-8") as f:
+            for row in keep:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def watch_and_rename(
+    folder: str,
+    dry_run: bool = True,
+    title_words: int = 8,
+    undo_log_path: str = ".indexa-renames.jsonl",
+    interval: float = 3.0,
+) -> None:
+    base = Path(folder).expanduser().resolve()
+    seen: set[str] = set()
+
+    print(f"Watching {base} for PDFs... (interval={interval}s, dry_run={dry_run})")
+    try:
+        while True:
+            for pdf in sorted(base.glob("*.pdf")):
+                key = str(pdf.resolve())
+                if key in seen:
+                    continue
+                seen.add(key)
+                process_file(pdf, dry_run=dry_run, title_words=title_words, undo_log_path=undo_log_path)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("Stopped watch mode.")
