@@ -47,12 +47,16 @@ GUI includes:
 
 ## Windows packaging / release
 
-We currently ship a **Windows EXE** via GitHub Actions.
+We ship **both** Windows package types via GitHub Actions:
 
-- Workflow: `.github/workflows/windows-release.yml`
-- Trigger options:
-  - manual: Actions → **Windows Release** → Run workflow
-  - release tag: push `v*` tag (e.g. `v0.1.0`)
+- **Portable:** `Indexa-windows-portable.zip`
+- **Installable:** `Indexa-Setup.exe` (Inno Setup)
+
+Workflow: `.github/workflows/windows-release.yml`
+
+Trigger options:
+- manual: Actions → **Windows Release** → Run workflow
+- release tag: push `v*` tag (e.g. `v0.1.0`)
 
 Tag release flow:
 
@@ -61,7 +65,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-After CI completes, download `Indexa-windows.zip` from the release assets.
+After CI completes, download both files from workflow/release assets.
 
 ## CLI
 

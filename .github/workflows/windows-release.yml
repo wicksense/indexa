@@ -25,24 +25,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      - name: Build EXE
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+
+      - name: Build portable EXE (onedir)
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean --windowed --name Indexa --hidden-import indexa.rename --collect-all PySide6 -m indexa.gui
 
-      - name: Zip artifact
+      - name: Build installer EXE (Inno Setup)
         shell: pwsh
         run: |
-          Compress-Archive -Path dist/Indexa/* -DestinationPath Indexa-windows.zip
+          iscc build/windows/Indexa.iss
 
-      - name: Upload workflow artifact
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/Indexa/* -DestinationPath Indexa-windows-portable.zip
+
+      - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Indexa-windows
-          path: Indexa-windows.zip
+          path: |
+            Indexa-windows-portable.zip
+            dist/Indexa-Setup.exe
 
       - name: Upload to GitHub Release (tag builds)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Indexa-windows.zip
+          files: |
+            Indexa-windows-portable.zip
+            dist/Indexa-Setup.exe
