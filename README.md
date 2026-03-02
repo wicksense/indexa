@@ -39,8 +39,10 @@ GUI includes:
 - folder picker
 - preview/apply scan
 - preview/apply undo
-- title-word control
-- undo-log path control
+- start/stop watch mode
+- system tray support (minimize to tray)
+- Windows autostart toggle (Run key)
+- title-word / interval / undo-log controls
 
 ## Commands
 
