@@ -149,7 +149,15 @@ def _first_author_last(author: Optional[str]) -> str:
             return left
 
     parts = a.split()
-    return parts[-1] if parts else "Unknown"
+    if len(parts) > 1:
+        return parts[-1]
+
+    # Handle squashed CamelCase names like "MohammadAsifulHossain"
+    camel_parts = re.findall(r"[A-Z][a-z]+", a)
+    if len(camel_parts) >= 2:
+        return camel_parts[-1]
+
+    return parts[0] if parts else "Unknown"
 
 
 def _build_filename(author: Optional[str], title: Optional[str], year: Optional[str]) -> str:
