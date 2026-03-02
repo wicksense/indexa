@@ -35,6 +35,11 @@ pip install -r requirements.txt
 python -m indexa.gui
 ```
 
+### Screenshots
+
+![Indexa Main Window](assets/indexa-main.png)
+![Indexa Watch Mode](assets/indexa-watch.png)
+
 GUI includes:
 - folder picker
 - preview/apply scan
