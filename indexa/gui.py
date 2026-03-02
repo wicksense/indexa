@@ -23,7 +23,36 @@ QMainWindow { background: #0f172a; }
 QLabel { color: #e2e8f0; font-size: 13px; }
 QGroupBox { color: #cbd5e1; border: 1px solid #334155; border-radius: 10px; margin-top: 10px; padding-top: 12px; font-weight: 600; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 6px; }
-QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit { background: #111827; border: 1px solid #334155; border-radius: 8px; padding: 8px; color: #e5e7eb; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QComboBox {
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px;
+    color: #e5e7eb;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 22px;
+    border-left: 1px solid #334155;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background: #1f2937;
+}
+QComboBox::down-arrow {
+    width: 0px; height: 0px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid #cbd5e1;
+}
+QComboBox QAbstractItemView {
+    background: #111827;
+    color: #e5e7eb;
+    border: 1px solid #334155;
+    selection-background-color: #0f766e;
+    selection-color: #ecfeff;
+    outline: 0;
+}
 QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
     subcontrol-origin: border;
     width: 16px;
@@ -121,13 +150,20 @@ class IndexaWindow(QtWidgets.QMainWindow):
         self.template_mode = QtWidgets.QComboBox()
         self.template_mode.addItems(list(TEMPLATE_PRESETS.keys()) + ["Custom (Advanced)"])
         self.template_mode.currentTextChanged.connect(self.on_template_mode_changed)
-        self.template_edit = QtWidgets.QLineEdit(TEMPLATE_PRESETS["Author - Title - Year"])
-        self.template_edit.setEnabled(False)
         tpl_row.addWidget(QtWidgets.QLabel("Filename style"))
-        tpl_row.addWidget(self.template_mode)
-        tpl_row.addWidget(QtWidgets.QLabel("Template"))
-        tpl_row.addWidget(self.template_edit)
+        tpl_row.addWidget(self.template_mode, 1)
         cfg_layout.addLayout(tpl_row)
+
+        self.template_row_widget = QtWidgets.QWidget()
+        tr = QtWidgets.QHBoxLayout(self.template_row_widget)
+        tr.setContentsMargins(0, 0, 0, 0)
+        self.template_label = QtWidgets.QLabel("Template")
+        self.template_edit = QtWidgets.QLineEdit(TEMPLATE_PRESETS["Author - Title - Year"])
+        self.template_edit.setEnabled(True)
+        tr.addWidget(self.template_label)
+        tr.addWidget(self.template_edit)
+        cfg_layout.addWidget(self.template_row_widget)
+        self.template_row_widget.hide()
 
         self.autostart_checkbox = QtWidgets.QCheckBox("Enable Windows autostart")
         self.autostart_checkbox.stateChanged.connect(self.on_autostart_changed)
@@ -217,9 +253,10 @@ class IndexaWindow(QtWidgets.QMainWindow):
 
     def on_template_mode_changed(self, text: str) -> None:
         if text == "Custom (Advanced)":
+            self.template_row_widget.show()
             self.template_edit.setEnabled(True)
         else:
-            self.template_edit.setEnabled(False)
+            self.template_row_widget.hide()
             self.template_edit.setText(TEMPLATE_PRESETS[text])
 
     def current_template(self) -> str:
