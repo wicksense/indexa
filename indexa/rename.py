@@ -84,6 +84,18 @@ def _extract_title_from_text(text: str) -> Optional[str]:
     return None
 
 
+def _author_needs_upgrade(author: Optional[str]) -> bool:
+    if not author:
+        return True
+    a = str(author).strip()
+    if not a:
+        return True
+    # One long token often means mashed full-name metadata, not surname
+    if len(a.split()) == 1 and len(a) >= 14:
+        return True
+    return False
+
+
 def _crossref_lookup_doi(doi: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
     try:
         url = f"https://api.crossref.org/works/{doi}"
@@ -203,14 +215,17 @@ def scan_and_rename(folder: str, dry_run: bool = True) -> None:
         doi = _extract_doi_from_text(first_page_text)
         if doi:
             a2, t2, y2 = _crossref_lookup_doi(doi)
-            author = author or a2
+            if _author_needs_upgrade(author):
+                author = a2 or author
+            else:
+                author = author or a2
             title = title or t2
             year = year or y2
 
         # Title-only lookup as fallback when author still missing
-        if (not author or author.strip().lower() == "unknown") and title:
+        if (_author_needs_upgrade(author)) and title:
             a3, t3, y3 = _crossref_lookup_title(title)
-            author = author or a3
+            author = a3 or author
             # keep local title unless it's weak
             if title.lower() in {"untitled", "unknown"}:
                 title = t3 or title
