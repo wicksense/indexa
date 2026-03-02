@@ -45,6 +45,24 @@ GUI includes:
 ![Indexa GUI (latest)](assets/indexa-gui-latest.png)
 ![Indexa Watch Mode](assets/indexa-watch.png)
 
+## Windows packaging / release
+
+We currently ship a **Windows EXE** via GitHub Actions.
+
+- Workflow: `.github/workflows/windows-release.yml`
+- Trigger options:
+  - manual: Actions → **Windows Release** → Run workflow
+  - release tag: push `v*` tag (e.g. `v0.1.0`)
+
+Tag release flow:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+After CI completes, download `Indexa-windows.zip` from the release assets.
+
 ## CLI
 
 ### Scan once
