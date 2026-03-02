@@ -61,8 +61,11 @@ python -m indexa.cli scan <folder> [--apply] [--title-words 8] [--undo-log .inde
 ### 2) Watch folder continuously
 
 ```bash
-python -m indexa.cli watch <folder> --apply --interval 3
+python -m indexa.cli watch <folder> --apply
 ```
+
+Uses event-driven file watching (`watchdog`) + stable-file checks by default.
+If watchdog is unavailable, it falls back to interval polling (`--interval`, default 3s).
 
 Stop with `Ctrl+C`.
 

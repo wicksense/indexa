@@ -341,6 +341,28 @@ def undo_renames(
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def _wait_until_stable(path: Path, checks: int = 3, delay: float = 0.7) -> bool:
+    """Return True once file size is stable across N checks."""
+    last_size = -1
+    stable = 0
+    for _ in range(max(1, checks) * 6):
+        if not path.exists():
+            return False
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return False
+        if size > 0 and size == last_size:
+            stable += 1
+            if stable >= checks:
+                return True
+        else:
+            stable = 0
+            last_size = size
+        time.sleep(max(0.2, delay))
+    return False
+
+
 def watch_and_rename(
     folder: str,
     dry_run: bool = True,
@@ -350,23 +372,79 @@ def watch_and_rename(
     template: str = "{first_author_last}-{short_title}-{year}",
 ) -> None:
     base = Path(folder).expanduser().resolve()
-    seen: set[str] = set()
+    print(f"Watching {base} for PDFs... (dry_run={dry_run})")
 
-    print(f"Watching {base} for PDFs... (interval={interval}s, dry_run={dry_run})")
+    try:
+        from watchdog.events import FileSystemEventHandler
+        from watchdog.observers import Observer
+    except Exception:
+        # Fallback polling mode
+        seen: set[str] = set()
+        print(f"watchdog not installed; using polling fallback (interval={interval}s)")
+        try:
+            while True:
+                for pdf in sorted(base.glob("*.pdf")):
+                    key = str(pdf.resolve())
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if _wait_until_stable(pdf):
+                        process_file(
+                            pdf,
+                            dry_run=dry_run,
+                            title_words=title_words,
+                            undo_log_path=undo_log_path,
+                            template=template,
+                        )
+                time.sleep(interval)
+        except KeyboardInterrupt:
+            print("Stopped watch mode.")
+        return
+
+    class _PdfHandler(FileSystemEventHandler):
+        def __init__(self) -> None:
+            self.last_processed: dict[str, float] = {}
+
+        def on_created(self, event):  # type: ignore[override]
+            self._handle(event)
+
+        def on_modified(self, event):  # type: ignore[override]
+            self._handle(event)
+
+        def _handle(self, event) -> None:
+            if event.is_directory:
+                return
+            p = Path(event.src_path)
+            if p.suffix.lower() != ".pdf":
+                return
+            key = str(p.resolve())
+            now = time.time()
+            # debounce bursts from download/write notifications
+            if now - self.last_processed.get(key, 0) < 1.0:
+                return
+            self.last_processed[key] = now
+
+            if not _wait_until_stable(p):
+                return
+
+            process_file(
+                p,
+                dry_run=dry_run,
+                title_words=title_words,
+                undo_log_path=undo_log_path,
+                template=template,
+            )
+
+    observer = Observer()
+    handler = _PdfHandler()
+    observer.schedule(handler, str(base), recursive=False)
+    observer.start()
     try:
         while True:
-            for pdf in sorted(base.glob("*.pdf")):
-                key = str(pdf.resolve())
-                if key in seen:
-                    continue
-                seen.add(key)
-                process_file(
-                    pdf,
-                    dry_run=dry_run,
-                    title_words=title_words,
-                    undo_log_path=undo_log_path,
-                    template=template,
-                )
-            time.sleep(interval)
+            time.sleep(0.5)
     except KeyboardInterrupt:
+        pass
+    finally:
+        observer.stop()
+        observer.join(timeout=5)
         print("Stopped watch mode.")
