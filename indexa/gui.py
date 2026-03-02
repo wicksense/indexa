@@ -40,24 +40,34 @@ QLineEdit, QSpinBox, QPlainTextEdit {
     selection-background-color: #2563eb;
 }
 QPushButton {
-    background: #1d4ed8;
-    color: white;
-    border: none;
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #334155;
     border-radius: 8px;
     padding: 8px 12px;
     font-weight: 600;
 }
 QPushButton:hover {
-    background: #2563eb;
+    background: #273548;
+    border: 1px solid #475569;
 }
 QPushButton:pressed {
-    background: #1e40af;
+    background: #111827;
+}
+QPushButton#primary {
+    background: #0f766e;
+    border: 1px solid #0f766e;
+    color: #ecfeff;
+}
+QPushButton#primary:hover {
+    background: #0d9488;
+    border: 1px solid #0d9488;
 }
 QPushButton#secondary {
-    background: #334155;
+    background: #374151;
 }
 QPushButton#secondary:hover {
-    background: #475569;
+    background: #4b5563;
 }
 """
 
@@ -119,8 +129,10 @@ class IndexaWindow(QtWidgets.QMainWindow):
         actions_row = QtWidgets.QHBoxLayout(actions_box)
         preview_btn = QtWidgets.QPushButton("Preview Scan")
         apply_btn = QtWidgets.QPushButton("Apply Scan")
+        apply_btn.setObjectName("primary")
         undo_preview_btn = QtWidgets.QPushButton("Preview Undo")
         undo_apply_btn = QtWidgets.QPushButton("Apply Undo")
+        undo_apply_btn.setObjectName("primary")
         clear_btn = QtWidgets.QPushButton("Clear Output")
         clear_btn.setObjectName("secondary")
 
