@@ -28,6 +28,20 @@ python -m indexa.cli scan ~/Downloads/indexa-test --dry-run
 python -m indexa.cli scan ~/Downloads/indexa-test --apply
 ```
 
+## GUI (PySide6)
+
+```bash
+pip install -r requirements.txt
+python -m indexa.gui
+```
+
+GUI includes:
+- folder picker
+- preview/apply scan
+- preview/apply undo
+- title-word control
+- undo-log path control
+
 ## Commands
 
 ### 1) Scan once
