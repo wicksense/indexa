@@ -11,6 +11,12 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from .rename import scan_and_rename, undo_renames
 
+TEMPLATE_PRESETS = {
+    "Author - Title - Year": "{first_author_last}-{short_title}-{year}",
+    "Year - Author - Title": "{year}-{first_author_last}-{short_title}",
+    "Title - Year - Author": "{short_title}-{year}-{first_author_last}",
+}
+
 
 APP_QSS = """
 QMainWindow { background: #0f172a; }
@@ -89,6 +95,18 @@ class IndexaWindow(QtWidgets.QMainWindow):
         opts_row.addWidget(QtWidgets.QLabel("Watch interval (s)")); opts_row.addWidget(self.interval_spin)
         opts_row.addWidget(QtWidgets.QLabel("Undo log")); opts_row.addWidget(self.undo_log)
         cfg_layout.addLayout(opts_row)
+
+        tpl_row = QtWidgets.QHBoxLayout()
+        self.template_mode = QtWidgets.QComboBox()
+        self.template_mode.addItems(list(TEMPLATE_PRESETS.keys()) + ["Custom (Advanced)"])
+        self.template_mode.currentTextChanged.connect(self.on_template_mode_changed)
+        self.template_edit = QtWidgets.QLineEdit(TEMPLATE_PRESETS["Author - Title - Year"])
+        self.template_edit.setEnabled(False)
+        tpl_row.addWidget(QtWidgets.QLabel("Filename style"))
+        tpl_row.addWidget(self.template_mode)
+        tpl_row.addWidget(QtWidgets.QLabel("Template"))
+        tpl_row.addWidget(self.template_edit)
+        cfg_layout.addLayout(tpl_row)
 
         self.autostart_checkbox = QtWidgets.QCheckBox("Enable Windows autostart")
         self.autostart_checkbox.stateChanged.connect(self.on_autostart_changed)
@@ -176,6 +194,17 @@ class IndexaWindow(QtWidgets.QMainWindow):
         else:
             self.start_watch()
 
+    def on_template_mode_changed(self, text: str) -> None:
+        if text == "Custom (Advanced)":
+            self.template_edit.setEnabled(True)
+        else:
+            self.template_edit.setEnabled(False)
+            self.template_edit.setText(TEMPLATE_PRESETS[text])
+
+    def current_template(self) -> str:
+        t = self.template_edit.text().strip()
+        return t or TEMPLATE_PRESETS["Author - Title - Year"]
+
     def pick_folder(self) -> None:
         selected = QtWidgets.QFileDialog.getExistingDirectory(self, "Choose folder", self.folder_edit.text())
         if selected: self.folder_edit.setText(selected)
@@ -203,14 +232,30 @@ class IndexaWindow(QtWidgets.QMainWindow):
         folder = self._ensure_folder()
         if not folder:
             return
-        out = self._capture_stdout(lambda: scan_and_rename(str(folder), dry_run=dry_run, title_words=self.title_words.value(), undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl"))
+        out = self._capture_stdout(
+            lambda: scan_and_rename(
+                str(folder),
+                dry_run=dry_run,
+                title_words=self.title_words.value(),
+                undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl",
+                template=self.current_template(),
+            )
+        )
         self._append(out or "(no output)")
 
     def scan_tick_output(self) -> str:
         folder = Path(self.folder_edit.text()).expanduser().resolve()
         if not folder.exists() or not folder.is_dir():
             return ""
-        return self._capture_stdout(lambda: scan_and_rename(str(folder), dry_run=False, title_words=self.title_words.value(), undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl"))
+        return self._capture_stdout(
+            lambda: scan_and_rename(
+                str(folder),
+                dry_run=False,
+                title_words=self.title_words.value(),
+                undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl",
+                template=self.current_template(),
+            )
+        )
 
     def start_watch(self) -> None:
         if not self._ensure_folder() or (self.watcher and self.watcher.is_alive()):

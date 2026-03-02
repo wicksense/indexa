@@ -8,6 +8,11 @@ def _add_common_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--dry-run", action="store_true", help="Preview only")
     p.add_argument("--title-words", type=int, default=8, help="Max words kept from title (default: 8)")
     p.add_argument(
+        "--template",
+        default="{first_author_last}-{short_title}-{year}",
+        help="Filename template (tokens: {first_author_last}, {short_title}, {year})",
+    )
+    p.add_argument(
         "--undo-log",
         default=".indexa-renames.jsonl",
         help="Path to JSONL rename log (default: .indexa-renames.jsonl in target folder)",
@@ -45,6 +50,7 @@ def main():
             dry_run=dry_run,
             title_words=args.title_words,
             undo_log_path=args.undo_log,
+            template=args.template,
         )
     elif args.cmd == "watch":
         watch_and_rename(
@@ -53,6 +59,7 @@ def main():
             title_words=args.title_words,
             undo_log_path=args.undo_log,
             interval=args.interval,
+            template=args.template,
         )
     elif args.cmd == "undo":
         undo_dry_run = args.dry_run or not args.apply

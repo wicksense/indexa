@@ -47,6 +47,7 @@ GUI includes:
 - start/stop watch mode
 - system tray support (minimize to tray)
 - Windows autostart toggle (Run key)
+- simple filename style presets + advanced custom template
 - title-word / interval / undo-log controls
 
 ## Commands

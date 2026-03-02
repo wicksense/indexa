@@ -168,11 +168,29 @@ def _first_author_last(author: Optional[str]) -> str:
     return _name_token_last(a)
 
 
-def _build_filename(author: Optional[str], title: Optional[str], year: Optional[str], title_words: int = 8) -> str:
-    author_last = _first_author_last(author)
-    title_short = _short_title(title or "Untitled", max_words=title_words)
-    year_part = year or "n.d"
-    return f"{_sanitize(author_last)}-{_sanitize(title_short)}-{_sanitize(year_part)}.pdf"
+def _build_filename(
+    author: Optional[str],
+    title: Optional[str],
+    year: Optional[str],
+    title_words: int = 8,
+    template: str = "{first_author_last}-{short_title}-{year}",
+) -> str:
+    values = {
+        "first_author_last": _sanitize(_first_author_last(author)),
+        "short_title": _sanitize(_short_title(title or "Untitled", max_words=title_words)),
+        "year": _sanitize(year or "n.d"),
+    }
+
+    out = template
+    for k, v in values.items():
+        out = out.replace(f"{{{k}}}", v)
+
+    # If user passes unknown tokens, keep app stable with fallback
+    if "{" in out or "}" in out:
+        out = f"{values['first_author_last']}-{values['short_title']}-{values['year']}"
+
+    out = _sanitize(out, max_len=180)
+    return f"{out}.pdf"
 
 
 def _dedupe_path(target: Path) -> Path:
@@ -211,6 +229,7 @@ def process_file(
     dry_run: bool = True,
     title_words: int = 8,
     undo_log_path: str = ".indexa-renames.jsonl",
+    template: str = "{first_author_last}-{short_title}-{year}",
 ) -> bool:
     base = pdf.parent
     log_path = _resolve_undo_log(base, undo_log_path)
@@ -241,7 +260,7 @@ def process_file(
             title = t3 or title
         year = year or y3
 
-    new_name = _build_filename(author, title, year, title_words=title_words)
+    new_name = _build_filename(author, title, year, title_words=title_words, template=template)
     target = _dedupe_path(pdf.with_name(new_name))
 
     if target.name == pdf.name:
@@ -261,6 +280,7 @@ def scan_and_rename(
     dry_run: bool = True,
     title_words: int = 8,
     undo_log_path: str = ".indexa-renames.jsonl",
+    template: str = "{first_author_last}-{short_title}-{year}",
 ) -> None:
     base = Path(folder).expanduser().resolve()
     pdfs = sorted(base.glob("*.pdf"))
@@ -270,7 +290,13 @@ def scan_and_rename(
         return
 
     for pdf in pdfs:
-        process_file(pdf, dry_run=dry_run, title_words=title_words, undo_log_path=undo_log_path)
+        process_file(
+            pdf,
+            dry_run=dry_run,
+            title_words=title_words,
+            undo_log_path=undo_log_path,
+            template=template,
+        )
 
 
 def undo_renames(
@@ -321,6 +347,7 @@ def watch_and_rename(
     title_words: int = 8,
     undo_log_path: str = ".indexa-renames.jsonl",
     interval: float = 3.0,
+    template: str = "{first_author_last}-{short_title}-{year}",
 ) -> None:
     base = Path(folder).expanduser().resolve()
     seen: set[str] = set()
@@ -333,7 +360,13 @@ def watch_and_rename(
                 if key in seen:
                     continue
                 seen.add(key)
-                process_file(pdf, dry_run=dry_run, title_words=title_words, undo_log_path=undo_log_path)
+                process_file(
+                    pdf,
+                    dry_run=dry_run,
+                    title_words=title_words,
+                    undo_log_path=undo_log_path,
+                    template=template,
+                )
             time.sleep(interval)
     except KeyboardInterrupt:
         print("Stopped watch mode.")
