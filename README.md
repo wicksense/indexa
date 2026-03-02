@@ -20,25 +20,15 @@ Auto-rename downloaded journal PDFs using a canonical filename format:
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-# Preview
-python -m indexa.cli scan ~/Downloads/indexa-test --dry-run
-
-# Apply renames
-python -m indexa.cli scan ~/Downloads/indexa-test --apply
 ```
 
-## GUI (PySide6)
+## GUI (recommended)
+
+Run:
 
 ```bash
-pip install -r requirements.txt
 python -m indexa.gui
 ```
-
-### Screenshots
-
-![Indexa Main Window](assets/indexa-main.png)
-![Indexa Watch Mode](assets/indexa-watch.png)
 
 GUI includes:
 - folder picker
@@ -50,15 +40,24 @@ GUI includes:
 - simple filename style presets + advanced custom template
 - title-word / interval / undo-log controls
 
-## Commands
+### GUI screenshots
 
-### 1) Scan once
+![Indexa GUI (latest)](assets/indexa-gui-latest.png)
+![Indexa Watch Mode](assets/indexa-watch.png)
+
+## CLI
+
+### Scan once
 
 ```bash
-python -m indexa.cli scan <folder> [--apply] [--title-words 8] [--undo-log .indexa-renames.jsonl]
+# preview
+python -m indexa.cli scan ~/Downloads/indexa-test --dry-run
+
+# apply
+python -m indexa.cli scan ~/Downloads/indexa-test --apply
 ```
 
-### 2) Watch folder continuously
+### Watch folder continuously
 
 ```bash
 python -m indexa.cli watch <folder> --apply
@@ -69,7 +68,7 @@ If watchdog is unavailable, it falls back to interval polling (`--interval`, def
 
 Stop with `Ctrl+C`.
 
-### 3) Undo renames
+### Undo renames
 
 ```bash
 # Preview undo for all logged renames
@@ -87,6 +86,11 @@ python -m indexa.cli undo <folder> --apply
 Default template:
 
 `{first_author_last}-{short_title}-{year}.pdf`
+
+Template tokens:
+- `{first_author_last}`
+- `{short_title}`
+- `{year}`
 
 The `--title-words` flag controls how many title words are kept (default: `8`).
 
