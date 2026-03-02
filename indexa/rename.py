@@ -130,8 +130,30 @@ def _short_title(title: str, max_words: int = 8) -> str:
     return "".join(words[:max_words]) or "Untitled"
 
 
+def _first_author_last(author: Optional[str]) -> str:
+    if not author:
+        return "Unknown"
+
+    a = re.sub(r"\s+", " ", str(author)).strip()
+
+    # Common multi-author separators in PDF metadata
+    if " and " in a:
+        a = a.split(" and ", 1)[0].strip()
+    if ";" in a:
+        a = a.split(";", 1)[0].strip()
+
+    # If metadata is like "Last, First", keep Last
+    if "," in a:
+        left, right = [x.strip() for x in a.split(",", 1)]
+        if left and right:
+            return left
+
+    parts = a.split()
+    return parts[-1] if parts else "Unknown"
+
+
 def _build_filename(author: Optional[str], title: Optional[str], year: Optional[str]) -> str:
-    author_last = (author or "Unknown").split()[-1]
+    author_last = _first_author_last(author)
     title_short = _short_title(title or "Untitled")
     year_part = year or "n.d"
     return f"{_sanitize(author_last)}-{_sanitize(title_short)}-{_sanitize(year_part)}.pdf"
