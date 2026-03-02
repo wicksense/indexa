@@ -142,6 +142,16 @@ def _short_title(title: str, max_words: int = 8) -> str:
     return "".join(words[:max_words]) or "Untitled"
 
 
+def _name_token_last(s: str) -> str:
+    parts = s.split()
+    if len(parts) > 1:
+        return parts[-1]
+    camel_parts = re.findall(r"[A-Z][a-z]+", s)
+    if len(camel_parts) >= 2:
+        return camel_parts[-1]
+    return parts[0] if parts else "Unknown"
+
+
 def _first_author_last(author: Optional[str]) -> str:
     if not author:
         return "Unknown"
@@ -154,22 +164,13 @@ def _first_author_last(author: Optional[str]) -> str:
     if ";" in a:
         a = a.split(";", 1)[0].strip()
 
-    # If metadata is like "Last, First", keep Last
+    # If metadata is like "Last, First", prefer Last but still normalize it.
     if "," in a:
         left, right = [x.strip() for x in a.split(",", 1)]
-        if left and right:
-            return left
+        if left:
+            return _name_token_last(left)
 
-    parts = a.split()
-    if len(parts) > 1:
-        return parts[-1]
-
-    # Handle squashed CamelCase names like "MohammadAsifulHossain"
-    camel_parts = re.findall(r"[A-Z][a-z]+", a)
-    if len(camel_parts) >= 2:
-        return camel_parts[-1]
-
-    return parts[0] if parts else "Unknown"
+    return _name_token_last(a)
 
 
 def _build_filename(author: Optional[str], title: Optional[str], year: Optional[str]) -> str:
