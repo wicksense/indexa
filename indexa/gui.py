@@ -24,6 +24,27 @@ QLabel { color: #e2e8f0; font-size: 13px; }
 QGroupBox { color: #cbd5e1; border: 1px solid #334155; border-radius: 10px; margin-top: 10px; padding-top: 12px; font-weight: 600; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 6px; }
 QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit { background: #111827; border: 1px solid #334155; border-radius: 8px; padding: 8px; color: #e5e7eb; }
+QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 16px;
+    border-left: 1px solid #334155;
+    background: #1f2937;
+}
+QSpinBox::up-button:hover, QSpinBox::down-button:hover, QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+    background: #273548;
+}
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    width: 0px; height: 0px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 6px solid #cbd5e1;
+}
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    width: 0px; height: 0px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #cbd5e1;
+}
 QCheckBox { color: #e5e7eb; }
 QPushButton { background: #1f2937; color: #e5e7eb; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; font-weight: 600; }
 QPushButton:hover { background: #273548; border: 1px solid #475569; }
