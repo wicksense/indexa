@@ -1,0 +1,36 @@
+name: App Issue Comment
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number"
+        required: true
+        default: "1"
+      body:
+        description: "Comment body"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Post issue comment as app
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          BODY: ${{ inputs.body }}
+        run: |
+          gh api repos/${REPO}/issues/${ISSUE_NUMBER}/comments -f body="$BODY" >/dev/null
+          echo "Comment posted on issue #${ISSUE_NUMBER}"
