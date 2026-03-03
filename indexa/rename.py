@@ -339,12 +339,10 @@ def process_file(
     doi = _extract_doi_from_text(first_page_text)
     if doi:
         a2, t2, y2 = _crossref_lookup_doi(doi)
-        if _author_needs_upgrade(author):
-            author = a2 or author
-        else:
-            author = author or a2
-        title = title or t2
-        year = year or y2
+        # DOI metadata is usually highest confidence; prefer it when available.
+        author = a2 or author
+        title = t2 or title
+        year = y2 or year
 
     # arXiv fallback (from PDF content only)
     arxiv_id = _extract_arxiv_id_from_text(first_page_text)
