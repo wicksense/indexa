@@ -47,21 +47,43 @@ def _extract_first_page_text(pdf_path: Path, max_chars: int = 12000) -> str:
         return ""
 
 
+def _extract_first_n_pages_text(pdf_path: Path, pages: int = 2, max_chars: int = 20000) -> str:
+    try:
+        reader = PdfReader(str(pdf_path))
+        chunks = []
+        for i in range(min(pages, len(reader.pages))):
+            chunks.append(reader.pages[i].extract_text() or "")
+        return "\n".join(chunks)[:max_chars]
+    except Exception:
+        return ""
+
+
 def _extract_doi_from_text(text: str) -> Optional[str]:
     m = re.search(r"10\.\d{4,9}/[-._;()/:A-Za-z0-9]+", text)
     return m.group(0).rstrip(".,;) ") if m else None
 
 
 def _extract_arxiv_id_from_text(text: str) -> Optional[str]:
+    # explicit arXiv: prefix first
+    m = re.search(r"arXiv\s*:\s*(\d{4}\.\d{4,5}(?:v\d+)?)", text, re.I)
+    if m:
+        return m.group(1)
     # modern form: 2410.08406 or 2410.08406v1
     m = re.search(r"\b(\d{4}\.\d{4,5}(?:v\d+)?)\b", text)
     if m:
         return m.group(1)
-    # explicit arXiv: prefix
-    m = re.search(r"arXiv\s*:\s*(\d{4}\.\d{4,5}(?:v\d+)?)", text, re.I)
-    if m:
-        return m.group(1)
     return None
+
+
+def _year_from_arxiv_id(arxiv_id: str) -> Optional[str]:
+    m = re.match(r"^(\d{2})(\d{2})\.\d{4,5}(?:v\d+)?$", arxiv_id)
+    if not m:
+        return None
+    yy, mm = int(m.group(1)), int(m.group(2))
+    if not (1 <= mm <= 12):
+        return None
+    year = 2000 + yy
+    return str(year)
 
 
 def _extract_filename_hints(pdf_path: Path) -> tuple[Optional[str], Optional[str]]:
@@ -153,6 +175,18 @@ def _extract_year_from_text_hint(text: str, author: Optional[str], title: Option
             return ys[0]
 
     return None
+
+
+def _extract_any_year_from_text(text: str) -> Optional[str]:
+    current_year = datetime.now().year
+    years = [int(y) for y in re.findall(r"\b(19\d{2}|20\d{2})\b", text[:20000])]
+    years = [y for y in years if 1900 <= y <= current_year + 1]
+    if not years:
+        return None
+    # Avoid overfitting to references tail: prefer median-ish by taking min of top quartile years
+    years_sorted = sorted(years)
+    idx = max(0, int(len(years_sorted) * 0.75) - 1)
+    return str(years_sorted[idx])
 
 
 def _is_reasonable_title_for_lookup(title: Optional[str]) -> bool:
@@ -380,13 +414,14 @@ def process_file(
 
     author, title, year = _extract_pdf_metadata(pdf)
     first_page_text = _extract_first_page_text(pdf)
+    first_two_pages_text = _extract_first_n_pages_text(pdf, pages=2)
 
     if not title or title.strip().lower() in {"untitled", "untitled document"}:
         title = _extract_title_from_text(first_page_text)
 
-    text_year_hint = _extract_year_from_text_hint(first_page_text, author, title)
+    text_year_hint = _extract_year_from_text_hint(first_two_pages_text, author, title)
 
-    doi = _extract_doi_from_text(first_page_text)
+    doi = _extract_doi_from_text(first_two_pages_text)
     if doi:
         a2, t2, y2 = _crossref_lookup_doi(doi)
         # DOI metadata is usually highest confidence; prefer it when available.
@@ -395,7 +430,7 @@ def process_file(
         year = y2 or year
 
     # arXiv fallback (from PDF content only)
-    arxiv_id = _extract_arxiv_id_from_text(first_page_text)
+    arxiv_id = _extract_arxiv_id_from_text(first_two_pages_text)
     if arxiv_id and (not title or _author_needs_upgrade(author) or not year or not _is_reasonable_title_for_lookup(title)):
         a4, t4, y4 = _arxiv_lookup(arxiv_id)
         if _author_needs_upgrade(author):
@@ -403,7 +438,7 @@ def process_file(
         # For arXiv ids, prefer arXiv metadata title/year over noisy PDF text
         title = t4 or title
         # Prefer arXiv year when arXiv id is known; PDF creation year is often wrong
-        year = y4 or year
+        year = y4 or _year_from_arxiv_id(arxiv_id) or year
 
     if (_author_needs_upgrade(author)) and _is_reasonable_title_for_lookup(title):
         a3, t3, y3 = _crossref_lookup_title(title)
@@ -416,7 +451,15 @@ def process_file(
     if text_year_hint and not doi and not arxiv_id:
         year = text_year_hint
 
-    # Very low-confidence case: avoid fabricating metadata from garbage names.
+    # Broad fallback: if year still missing, attempt a conservative year guess from early text.
+    if not year:
+        year = _extract_any_year_from_text(first_two_pages_text) or year
+
+    # Very low-confidence cases: avoid fabricating metadata.
+    if _author_needs_upgrade(author) and (not title or title.strip().lower() in {"untitled", "unknown"}):
+        print(f"SKIP  {pdf.name} (low-confidence metadata)")
+        return False
+
     if not doi and not arxiv_id and _author_needs_upgrade(author) and not year and not _is_reasonable_title_for_lookup(title):
         print(f"SKIP  {pdf.name} (low-confidence metadata)")
         return False

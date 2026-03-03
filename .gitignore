@@ -6,3 +6,5 @@ __pycache__/
 testdata/
 tests/corpus/pdfs/
 tests/corpus/report.json
+tests/corpus_100/pdfs/
+tests/corpus_100/report.json
