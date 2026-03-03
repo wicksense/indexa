@@ -50,6 +50,18 @@ def _extract_doi_from_text(text: str) -> Optional[str]:
     return m.group(0).rstrip(".,;) ") if m else None
 
 
+def _extract_arxiv_id_from_text(text: str) -> Optional[str]:
+    # modern form: 2410.08406 or 2410.08406v1
+    m = re.search(r"\b(\d{4}\.\d{4,5}(?:v\d+)?)\b", text)
+    if m:
+        return m.group(1)
+    # explicit arXiv: prefix
+    m = re.search(r"arXiv\s*:\s*(\d{4}\.\d{4,5}(?:v\d+)?)", text, re.I)
+    if m:
+        return m.group(1)
+    return None
+
+
 def _extract_filename_hints(pdf_path: Path) -> tuple[Optional[str], Optional[str]]:
     stem = pdf_path.stem.replace("_", " ")
 
@@ -63,6 +75,10 @@ def _extract_filename_hints(pdf_path: Path) -> tuple[Optional[str], Optional[str
     m = re.search(r"(19|20)\d{2}", stem)
     if m:
         year = m.group(0)
+
+    # Avoid treating raw ids as titles (e.g., 2410.08406v1)
+    if re.fullmatch(r"\d{4}\.\d{4,5}(?:v\d+)?", stem.strip()):
+        return year, None
 
     return year, stem.strip() or None
 
@@ -112,6 +128,30 @@ def _crossref_lookup_title(title: str) -> tuple[Optional[str], Optional[str], Op
         if not items:
             return None, None, None
         return _parse_crossref_message(items[0])
+    except Exception:
+        return None, None, None
+
+
+def _arxiv_lookup(arxiv_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    try:
+        url = f"https://export.arxiv.org/api/query?id_list={arxiv_id}"
+        r = requests.get(url, timeout=15)
+        r.raise_for_status()
+        xml = r.text
+
+        title_m = re.search(r"<title>\s*(.*?)\s*</title>", xml, re.S)
+        # first <title> is feed title; second is paper title
+        titles = re.findall(r"<title>\s*(.*?)\s*</title>", xml, re.S)
+        title = None
+        if len(titles) >= 2:
+            title = re.sub(r"\s+", " ", titles[1]).strip()
+
+        authors = re.findall(r"<name>\s*(.*?)\s*</name>", xml, re.S)
+        author = re.sub(r"\s+", " ", authors[0]).strip() if authors else None
+
+        published = re.search(r"<published>(\d{4})-", xml)
+        year = published.group(1) if published else None
+        return author, title, year
     except Exception:
         return None, None, None
 
@@ -252,6 +292,15 @@ def process_file(
             author = author or a2
         title = title or t2
         year = year or y2
+
+    # arXiv fallback (from filename or first page text)
+    arxiv_id = _extract_arxiv_id_from_text(pdf.stem) or _extract_arxiv_id_from_text(first_page_text)
+    if arxiv_id and (not title or _author_needs_upgrade(author) or not year):
+        a4, t4, y4 = _arxiv_lookup(arxiv_id)
+        if _author_needs_upgrade(author):
+            author = a4 or author
+        title = title or t4
+        year = year or y4
 
     if (_author_needs_upgrade(author)) and title:
         a3, t3, y3 = _crossref_lookup_title(title)
