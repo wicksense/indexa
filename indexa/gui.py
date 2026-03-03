@@ -9,6 +9,63 @@ from pathlib import Path
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
+
+def _make_indexa_icon(size: int = 256) -> QtGui.QIcon:
+    pm = QtGui.QPixmap(size, size)
+    pm.fill(QtCore.Qt.GlobalColor.transparent)
+
+    p = QtGui.QPainter(pm)
+    p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+
+    # rounded background
+    bg = QtGui.QColor("#0f766e")
+    p.setBrush(bg)
+    p.setPen(QtCore.Qt.PenStyle.NoPen)
+    p.drawRoundedRect(0, 0, size, size, size * 0.2, size * 0.2)
+
+    # document shape
+    margin = int(size * 0.2)
+    doc_w = int(size * 0.44)
+    doc_h = int(size * 0.58)
+    doc_x = margin
+    doc_y = int(size * 0.2)
+    p.setBrush(QtGui.QColor("#ecfeff"))
+    p.drawRoundedRect(doc_x, doc_y, doc_w, doc_h, size * 0.05, size * 0.05)
+
+    # folded corner
+    fold = int(size * 0.1)
+    fold_path = QtGui.QPainterPath()
+    fold_path.moveTo(doc_x + doc_w - fold, doc_y)
+    fold_path.lineTo(doc_x + doc_w, doc_y)
+    fold_path.lineTo(doc_x + doc_w, doc_y + fold)
+    fold_path.closeSubpath()
+    p.setBrush(QtGui.QColor("#99f6e4"))
+    p.drawPath(fold_path)
+
+    # lines on document
+    pen = QtGui.QPen(QtGui.QColor("#0f766e"))
+    pen.setWidth(max(2, size // 40))
+    p.setPen(pen)
+    for i in range(3):
+        y = doc_y + int(size * 0.14) + i * int(size * 0.09)
+        p.drawLine(doc_x + int(size * 0.06), y, doc_x + doc_w - int(size * 0.07), y)
+
+    # index tag bubble
+    cx = int(size * 0.72)
+    cy = int(size * 0.64)
+    r = int(size * 0.17)
+    p.setBrush(QtGui.QColor("#111827"))
+    p.setPen(QtGui.QPen(QtGui.QColor("#a7f3d0"), max(3, size // 48)))
+    p.drawEllipse(QtCore.QPoint(cx, cy), r, r)
+
+    # dot in tag
+    p.setBrush(QtGui.QColor("#a7f3d0"))
+    p.setPen(QtCore.Qt.PenStyle.NoPen)
+    p.drawEllipse(QtCore.QPoint(cx + int(r * 0.25), cy - int(r * 0.2)), max(3, r // 7), max(3, r // 7))
+
+    p.end()
+    return QtGui.QIcon(pm)
+
 try:
     from .rename import process_file, scan_and_rename, undo_renames
 except ImportError:
@@ -110,6 +167,7 @@ class IndexaWindow(QtWidgets.QMainWindow):
     def __init__(self, start_minimized: bool = False) -> None:
         super().__init__()
         self.setWindowTitle("Indexa")
+        self.setWindowIcon(_make_indexa_icon(256))
         self.resize(1040, 720)
         self.watcher: WatcherThread | None = None
         self.watch_seen: dict[str, float] = {}
@@ -147,7 +205,7 @@ class IndexaWindow(QtWidgets.QMainWindow):
 
         opts_row.addWidget(QtWidgets.QLabel("Title words")); opts_row.addWidget(self.title_words)
         opts_row.addWidget(QtWidgets.QLabel("Undo steps")); opts_row.addWidget(self.steps_spin)
-        opts_row.addWidget(QtWidgets.QLabel("Watch interval (s)")); opts_row.addWidget(self.interval_spin)
+        opts_row.addWidget(QtWidgets.QLabel("Watch interval (s, polling)")); opts_row.addWidget(self.interval_spin)
         opts_row.addWidget(QtWidgets.QLabel("Undo log")); opts_row.addWidget(self.undo_log)
         cfg_layout.addLayout(opts_row)
 
@@ -220,7 +278,7 @@ class IndexaWindow(QtWidgets.QMainWindow):
             self.tray = None
             return
         self.tray = QtWidgets.QSystemTrayIcon(self)
-        icon = self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ComputerIcon)
+        icon = _make_indexa_icon(256)
         self.tray.setIcon(icon)
         self.setWindowIcon(icon)
         menu = QtWidgets.QMenu()
