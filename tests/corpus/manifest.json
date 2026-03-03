@@ -1,0 +1,50 @@
+[
+  {
+    "file": "case01_arxiv_1706.pdf",
+    "url": "https://arxiv.org/pdf/1706.03762.pdf"
+  },
+  {
+    "file": "case02_arxiv_1810.pdf",
+    "url": "https://arxiv.org/pdf/1810.04805.pdf"
+  },
+  {
+    "file": "case03_arxiv_1512.pdf",
+    "url": "https://arxiv.org/pdf/1512.03385.pdf"
+  },
+  {
+    "file": "case04_arxiv_2006.pdf",
+    "url": "https://arxiv.org/pdf/2006.11239.pdf"
+  },
+  {
+    "file": "case05_plos_pone_0001248.pdf",
+    "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0001248&type=printable"
+  },
+  {
+    "file": "case06_plos_pone_0260976.pdf",
+    "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0260976&type=printable"
+  },
+  {
+    "file": "case07_plos_pbio_3000002.pdf",
+    "url": "https://journals.plos.org/plosbiology/article/file?id=10.1371/journal.pbio.3000002&type=printable"
+  },
+  {
+    "file": "case08_plos_pbio_3001755.pdf",
+    "url": "https://journals.plos.org/plosbiology/article/file?id=10.1371/journal.pbio.3001755&type=printable"
+  },
+  {
+    "file": "case09_plos_pone_0283902.pdf",
+    "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0283902&type=printable"
+  },
+  {
+    "file": "case10_plos_pone_0291803.pdf",
+    "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0291803&type=printable"
+  },
+  {
+    "file": "case11_legacy_ecology_sample.pdf",
+    "url": "local media sample"
+  },
+  {
+    "file": "case12_blank_synthetic.pdf",
+    "url": "synthetic"
+  }
+]

@@ -107,6 +107,54 @@ def _extract_title_from_text(text: str) -> Optional[str]:
     return None
 
 
+def _extract_year_from_text_hint(text: str, author: Optional[str], title: Optional[str]) -> Optional[str]:
+    """Heuristic citation-year extraction from first page text.
+
+    Prefer lines that look like references for this paper (author + title terms + year).
+    """
+    lines = text.splitlines()[:100]
+    current_year = datetime.now().year
+
+    author_last = _first_author_last(author).lower() if author else ""
+    title_words = re.findall(r"[A-Za-z]{4,}", title or "")[:3]
+    title_words = [w.lower() for w in title_words]
+
+    def valid_years(line: str) -> list[str]:
+        out = []
+        for y in re.findall(r"\b(19\d{2}|20\d{2})\b", line):
+            yi = int(y)
+            if 1900 <= yi <= current_year + 1:
+                out.append(y)
+        return out
+
+    # Pass 1: strong match line with author + at least one title word
+    for raw in lines:
+        line = re.sub(r"\s+", " ", raw).strip()
+        low = line.lower()
+        if not line:
+            continue
+        if author_last and author_last not in low:
+            continue
+        if title_words and not any(w in low for w in title_words):
+            continue
+        ys = valid_years(line)
+        if ys:
+            return ys[0]
+
+    # Pass 2: citation-like line fallback
+    for raw in lines:
+        line = re.sub(r"\s+", " ", raw).strip()
+        if not line:
+            continue
+        if not re.search(r"\b(et al\.?|doi|journal|j\.|sci\.|vol\.|pp\.)\b", line, re.I):
+            continue
+        ys = valid_years(line)
+        if ys:
+            return ys[0]
+
+    return None
+
+
 def _is_reasonable_title_for_lookup(title: Optional[str]) -> bool:
     if not title:
         return False
@@ -336,6 +384,8 @@ def process_file(
     if not title or title.strip().lower() in {"untitled", "untitled document"}:
         title = _extract_title_from_text(first_page_text)
 
+    text_year_hint = _extract_year_from_text_hint(first_page_text, author, title)
+
     doi = _extract_doi_from_text(first_page_text)
     if doi:
         a2, t2, y2 = _crossref_lookup_doi(doi)
@@ -361,6 +411,10 @@ def process_file(
         if title and title.lower() in {"untitled", "unknown"}:
             title = t3 or title
         year = year or y3
+
+    # For non-DOI/arXiv papers, prefer citation-like year from first-page text over PDF creation year.
+    if text_year_hint and not doi and not arxiv_id:
+        year = text_year_hint
 
     # Very low-confidence case: avoid fabricating metadata from garbage names.
     if not doi and not arxiv_id and _author_needs_upgrade(author) and not year and not _is_reasonable_title_for_lookup(title):
