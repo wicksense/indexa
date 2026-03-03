@@ -233,7 +233,7 @@ class IndexaWindow(QtWidgets.QMainWindow):
         cfg_layout.addWidget(self.template_row_widget)
         self.template_row_widget.hide()
 
-        self.autostart_checkbox = QtWidgets.QCheckBox("Enable Windows autostart")
+        self.autostart_checkbox = QtWidgets.QCheckBox("Launch Indexa on startup")
         self.autostart_checkbox.stateChanged.connect(self.on_autostart_changed)
         if platform.system() == "Windows":
             self.autostart_checkbox.setChecked(self.get_windows_autostart())
