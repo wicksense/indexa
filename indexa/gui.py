@@ -178,7 +178,7 @@ class IndexaWindow(QtWidgets.QMainWindow):
         outer.setContentsMargins(18, 18, 18, 18)
         outer.setSpacing(12)
 
-        title = QtWidgets.QLabel("Indexa · Journal PDF Organizer")
+        title = QtWidgets.QLabel("Indexa · Academic PDF Organizer")
         title.setStyleSheet("font-size: 20px; font-weight: 700; color: #f8fafc;")
         subtitle = QtWidgets.QLabel("Preview, apply, undo, and watch folders in background")
         subtitle.setStyleSheet("color: #94a3b8;")
