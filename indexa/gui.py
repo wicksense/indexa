@@ -10,10 +10,10 @@ from pathlib import Path
 from PySide6 import QtCore, QtGui, QtWidgets
 
 try:
-    from .rename import scan_and_rename, undo_renames
+    from .rename import process_file, scan_and_rename, undo_renames
 except ImportError:
     # Supports frozen/script execution paths where package context can differ
-    from indexa.rename import scan_and_rename, undo_renames
+    from indexa.rename import process_file, scan_and_rename, undo_renames
 
 TEMPLATE_PRESETS = {
     "Author - Title - Year": "{first_author_last}-{short_title}-{year}",
@@ -112,6 +112,7 @@ class IndexaWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Indexa")
         self.resize(1040, 720)
         self.watcher: WatcherThread | None = None
+        self.watch_seen: dict[str, float] = {}
 
         root = QtWidgets.QWidget()
         self.setCentralWidget(root)
@@ -309,19 +310,38 @@ class IndexaWindow(QtWidgets.QMainWindow):
         folder = Path(self.folder_edit.text()).expanduser().resolve()
         if not folder.exists() or not folder.is_dir():
             return ""
-        return self._capture_stdout(
-            lambda: scan_and_rename(
-                str(folder),
-                dry_run=False,
-                title_words=self.title_words.value(),
-                undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl",
-                template=self.current_template(),
-            )
-        )
+
+        out_lines: list[str] = []
+        for pdf in sorted(folder.glob("*.pdf")):
+            try:
+                mtime = pdf.stat().st_mtime
+            except OSError:
+                continue
+            key = str(pdf.resolve())
+            if self.watch_seen.get(key) == mtime:
+                continue
+
+            def _one() -> None:
+                process_file(
+                    pdf,
+                    dry_run=False,
+                    title_words=self.title_words.value(),
+                    undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl",
+                    template=self.current_template(),
+                )
+
+            text = self._capture_stdout(_one)
+            if text and not text.startswith("SKIP"):
+                out_lines.append(text)
+            # refresh key in case file got renamed
+            self.watch_seen[key] = mtime
+
+        return "\n".join(out_lines).strip()
 
     def start_watch(self) -> None:
         if not self._ensure_folder() or (self.watcher and self.watcher.is_alive()):
             return
+        self.watch_seen = {}
         self.watcher = WatcherThread(self)
         self.watcher.start()
         self.watch_start_btn.setEnabled(False); self.watch_stop_btn.setEnabled(True)
