@@ -1,6 +1,6 @@
 # Indexa
 
-Auto-rename downloaded journal PDFs using a canonical filename format:
+Auto-rename downloaded academic PDFs using a canonical filename format:
 
 `FirstAuthor-ShortTitle-Year.pdf`
 
@@ -18,31 +18,26 @@ And yeah… ain’t nobody got time for that.
 That constant friction is exactly why Indexa exists:  
 **download PDF → auto-name it cleanly → move on.**
 
-## What it does
+---
 
-- Scans a folder for PDFs
-- Extracts metadata from embedded PDF fields first
-- Falls back to text extraction + DOI lookup via Crossref
-- Renames files safely (collision-aware)
-- Supports dry-run mode
-- Writes an undo log for all applied renames
-- Optional watch mode for continuously renaming new downloads
+## Download (Windows)
 
-## Quick start
+Get the latest release here:
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+**https://github.com/wicksense/indexa/releases**
 
-## GUI (recommended)
+Download one of these:
 
-Run:
+- **Indexa-Setup.exe** → installable app (recommended for most users)
+- **Indexa-windows-portable.zip** → portable version (no install)
 
-```bash
-python -m indexa.gui
-```
+## Quick usage (GUI)
+
+1. Open **Indexa**
+2. Pick your folder
+3. Click **Preview Scan**
+4. If good, click **Apply Scan**
+5. (Optional) click **Start Watch** to auto-handle incoming PDFs
 
 GUI includes:
 - folder picker
@@ -50,72 +45,24 @@ GUI includes:
 - preview/apply undo
 - start/stop watch mode
 - system tray support (minimize to tray)
-- Windows autostart toggle (Run key)
+- Launch on startup toggle (Windows)
 - simple filename style presets + advanced custom template
-- title-word / interval / undo-log controls
 
 ### GUI screenshots
 
 ![Indexa GUI (latest)](assets/indexa-gui-latest.png)
 ![Indexa Watch Mode](assets/indexa-watch.png)
 
-## Windows packaging / release
+---
 
-We ship **both** Windows package types via GitHub Actions:
+## What it does
 
-- **Portable:** `Indexa-windows-portable.zip`
-- **Installable:** `Indexa-Setup.exe` (Inno Setup)
-
-Workflow: `.github/workflows/windows-release.yml`
-
-Trigger options:
-- manual: Actions → **Windows Release** → Run workflow
-- release tag: push `v*` tag (e.g. `v0.1.0`)
-
-Tag release flow:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-After CI completes, download both files from workflow/release assets.
-
-## CLI
-
-### Scan once
-
-```bash
-# preview
-python -m indexa.cli scan ~/Downloads/indexa-test --dry-run
-
-# apply
-python -m indexa.cli scan ~/Downloads/indexa-test --apply
-```
-
-### Watch folder continuously
-
-```bash
-python -m indexa.cli watch <folder> --apply
-```
-
-Uses event-driven file watching (`watchdog`) + stable-file checks by default.
-If watchdog is unavailable, it falls back to interval polling (`--interval`, default 3s).
-
-Stop with `Ctrl+C`.
-
-### Undo renames
-
-```bash
-# Preview undo for all logged renames
-python -m indexa.cli undo <folder> --dry-run
-
-# Undo last 5 renames
-python -m indexa.cli undo <folder> --steps 5 --apply
-
-# Undo all renames in the log
-python -m indexa.cli undo <folder> --apply
-```
+- Scans a folder for PDFs
+- Extracts metadata from PDF content (not from original filename)
+- DOI/Crossref + arXiv lookup support
+- Renames files safely (collision-aware)
+- Supports dry-run mode
+- Writes an undo log for applied renames
 
 ## Filename rule
 
@@ -128,6 +75,40 @@ Template tokens:
 - `{short_title}`
 - `{year}`
 
-The `--title-words` flag controls how many title words are kept (default: `8`).
+---
 
-Sanitization removes filesystem-hostile characters and truncates long tokens.
+## CLI (advanced)
+
+### Scan once
+
+```bash
+python -m indexa.cli scan <folder> --dry-run
+python -m indexa.cli scan <folder> --apply
+```
+
+### Watch folder continuously
+
+```bash
+python -m indexa.cli watch <folder> --apply
+```
+
+Uses event-driven file watching (`watchdog`) when available, with fallback polling.
+
+### Undo renames
+
+```bash
+python -m indexa.cli undo <folder> --dry-run
+python -m indexa.cli undo <folder> --steps 5 --apply
+python -m indexa.cli undo <folder> --apply
+```
+
+---
+
+## Developer setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m indexa.gui
+```
