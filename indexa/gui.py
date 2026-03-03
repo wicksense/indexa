@@ -314,10 +314,12 @@ class IndexaWindow(QtWidgets.QMainWindow):
         out_lines: list[str] = []
         for pdf in sorted(folder.glob("*.pdf")):
             try:
-                mtime = pdf.stat().st_mtime
+                st = pdf.stat()
+                mtime = st.st_mtime
+                # stable identity across rename on same filesystem
+                key = f"inode:{st.st_dev}:{st.st_ino}" if getattr(st, "st_ino", 0) else str(pdf.resolve())
             except OSError:
                 continue
-            key = str(pdf.resolve())
             if self.watch_seen.get(key) == mtime:
                 continue
 
