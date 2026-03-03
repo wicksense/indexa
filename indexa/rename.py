@@ -92,7 +92,14 @@ def _extract_title_from_text(text: str) -> Optional[str]:
             continue
         if re.search(r"\b(doi|abstract|keywords|introduction)\b", line, re.I):
             continue
+        if re.search(r"\barxiv\b", line, re.I):
+            continue
+        if re.search(r"provided proper attribution|google hereby grants", line, re.I):
+            continue
         if re.fullmatch(r"[A-Z\s]{8,}", line):
+            continue
+        # skip obvious id/header-like lines
+        if re.fullmatch(r"[A-Za-z0-9./:_ -]{0,6}\d{4}\.\d{4,5}(v\d+)?[A-Za-z0-9./:_ -]*", line):
             continue
         return line
     return None
@@ -103,6 +110,8 @@ def _is_reasonable_title_for_lookup(title: Optional[str]) -> bool:
         return False
     t = title.strip()
     if len(t) < 12:
+        return False
+    if re.search(r"provided proper attribution|google hereby grants|published as a conference paper", t, re.I):
         return False
     words = re.findall(r"[A-Za-z]{2,}", t)
     if len(words) < 2:
@@ -307,12 +316,14 @@ def process_file(
 
     # arXiv fallback (from PDF content only)
     arxiv_id = _extract_arxiv_id_from_text(first_page_text)
-    if arxiv_id and (not title or _author_needs_upgrade(author) or not year):
+    if arxiv_id and (not title or _author_needs_upgrade(author) or not year or not _is_reasonable_title_for_lookup(title)):
         a4, t4, y4 = _arxiv_lookup(arxiv_id)
         if _author_needs_upgrade(author):
             author = a4 or author
-        title = title or t4
-        year = year or y4
+        # For arXiv ids, prefer arXiv metadata title/year over noisy PDF text
+        title = t4 or title
+        # Prefer arXiv year when arXiv id is known; PDF creation year is often wrong
+        year = y4 or year
 
     if (_author_needs_upgrade(author)) and _is_reasonable_title_for_lookup(title):
         a3, t3, y3 = _crossref_lookup_title(title)
