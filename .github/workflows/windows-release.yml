@@ -33,7 +33,7 @@ jobs:
       - name: Build portable EXE (onedir)
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --name Indexa --hidden-import indexa.rename --collect-all PySide6 -m indexa.gui
+          pyinstaller --noconfirm --clean --windowed --name Indexa --hidden-import indexa.rename --collect-all PySide6 indexa/gui.py
 
       - name: Build installer EXE (Inno Setup)
         shell: pwsh

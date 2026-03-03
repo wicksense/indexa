@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 python -m pip install --upgrade pip
 pip install -r requirements.txt pyinstaller
 
-pyinstaller --noconfirm --clean --windowed --name Indexa --hidden-import indexa.rename --collect-all PySide6 -m indexa.gui
+pyinstaller --noconfirm --clean --windowed --name Indexa --hidden-import indexa.rename --collect-all PySide6 indexa/gui.py
 
 if (Get-Command iscc -ErrorAction SilentlyContinue) {
   iscc build/windows/Indexa.iss
