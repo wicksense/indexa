@@ -4,6 +4,20 @@ Auto-rename downloaded journal PDFs using a canonical filename format:
 
 `FirstAuthor-ShortTitle-Year.pdf`
 
+## Why we built this
+
+This came from a very real pain point [@Tharusha-W](https://github.com/Tharusha-W) kept running into while downloading and organizing academic papers for research:
+
+> “Why do I have to type this out every single time? There has to be a more efficient way.”
+
+Short filenames like `FirstAuthor et al. (Year)` are fast in the moment, but later you end up reopening files just to find the exact title when you want to share them.
+
+Adding full titles helps, but then every download turns into another tiny manual task.  
+And yeah… ain’t nobody got time for that.
+
+That constant friction is exactly why Indexa exists:  
+**download PDF → auto-name it cleanly → move on.**
+
 ## What it does
 
 - Scans a folder for PDFs
