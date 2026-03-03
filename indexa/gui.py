@@ -9,7 +9,11 @@ from pathlib import Path
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from .rename import scan_and_rename, undo_renames
+try:
+    from .rename import scan_and_rename, undo_renames
+except ImportError:
+    # Supports frozen/script execution paths where package context can differ
+    from indexa.rename import scan_and_rename, undo_renames
 
 TEMPLATE_PRESETS = {
     "Author - Title - Year": "{first_author_last}-{short_title}-{year}",
