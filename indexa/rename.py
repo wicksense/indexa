@@ -290,13 +290,10 @@ def process_file(
     log_path = _resolve_undo_log(base, undo_log_path)
 
     author, title, year = _extract_pdf_metadata(pdf)
-    fname_year, fname_title = _extract_filename_hints(pdf)
     first_page_text = _extract_first_page_text(pdf)
 
-    year = fname_year or year
-
     if not title or title.strip().lower() in {"untitled", "untitled document"}:
-        title = fname_title or _extract_title_from_text(first_page_text)
+        title = _extract_title_from_text(first_page_text)
 
     doi = _extract_doi_from_text(first_page_text)
     if doi:
@@ -308,8 +305,8 @@ def process_file(
         title = title or t2
         year = year or y2
 
-    # arXiv fallback (from filename or first page text)
-    arxiv_id = _extract_arxiv_id_from_text(pdf.stem) or _extract_arxiv_id_from_text(first_page_text)
+    # arXiv fallback (from PDF content only)
+    arxiv_id = _extract_arxiv_id_from_text(first_page_text)
     if arxiv_id and (not title or _author_needs_upgrade(author) or not year):
         a4, t4, y4 = _arxiv_lookup(arxiv_id)
         if _author_needs_upgrade(author):
