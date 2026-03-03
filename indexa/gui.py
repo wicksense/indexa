@@ -205,8 +205,13 @@ class IndexaWindow(QtWidgets.QMainWindow):
 
         opts_row.addWidget(QtWidgets.QLabel("Title words")); opts_row.addWidget(self.title_words)
         opts_row.addWidget(QtWidgets.QLabel("Undo steps")); opts_row.addWidget(self.steps_spin)
-        opts_row.addWidget(QtWidgets.QLabel("Watch interval (s, polling)")); opts_row.addWidget(self.interval_spin)
+        self.interval_label = QtWidgets.QLabel("Watch interval (s, polling)")
+        opts_row.addWidget(self.interval_label); opts_row.addWidget(self.interval_spin)
         opts_row.addWidget(QtWidgets.QLabel("Undo log")); opts_row.addWidget(self.undo_log)
+
+        # Keep interval internal for now; hide from UI until watchdog-only watch mode lands.
+        self.interval_label.hide()
+        self.interval_spin.hide()
         cfg_layout.addLayout(opts_row)
 
         tpl_row = QtWidgets.QHBoxLayout()
