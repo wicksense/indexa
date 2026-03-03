@@ -98,6 +98,21 @@ def _extract_title_from_text(text: str) -> Optional[str]:
     return None
 
 
+def _is_reasonable_title_for_lookup(title: Optional[str]) -> bool:
+    if not title:
+        return False
+    t = title.strip()
+    if len(t) < 12:
+        return False
+    words = re.findall(r"[A-Za-z]{2,}", t)
+    if len(words) < 2:
+        return False
+    # single-token or gibberish-like stems (e.g., sdfsdfsd) should not trigger web lookup
+    if len(t.split()) == 1:
+        return False
+    return True
+
+
 def _author_needs_upgrade(author: Optional[str]) -> bool:
     if not author:
         return True
@@ -302,12 +317,17 @@ def process_file(
         title = title or t4
         year = year or y4
 
-    if (_author_needs_upgrade(author)) and title:
+    if (_author_needs_upgrade(author)) and _is_reasonable_title_for_lookup(title):
         a3, t3, y3 = _crossref_lookup_title(title)
         author = a3 or author
-        if title.lower() in {"untitled", "unknown"}:
+        if title and title.lower() in {"untitled", "unknown"}:
             title = t3 or title
         year = year or y3
+
+    # Very low-confidence case: avoid fabricating metadata from garbage names.
+    if not doi and not arxiv_id and _author_needs_upgrade(author) and not year and not _is_reasonable_title_for_lookup(title):
+        print(f"SKIP  {pdf.name} (low-confidence metadata)")
+        return False
 
     new_name = _build_filename(author, title, year, title_words=title_words, template=template)
     target = _dedupe_path(pdf.with_name(new_name))
