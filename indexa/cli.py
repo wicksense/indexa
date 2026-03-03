@@ -8,6 +8,18 @@ def _add_common_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--dry-run", action="store_true", help="Preview only")
     p.add_argument("--title-words", type=int, default=8, help="Max words kept from title (default: 8)")
     p.add_argument(
+        "--title-spacing",
+        choices=["compact", "spaces", "underscore"],
+        default="compact",
+        help="How words are joined in the title portion",
+    )
+    p.add_argument(
+        "--title-case",
+        choices=["original", "sentence", "lower", "title"],
+        default="original",
+        help="Casing style for title portion",
+    )
+    p.add_argument(
         "--template",
         default="{first_author_last}-{short_title}-{year}",
         help="Filename template (tokens: {first_author_last}, {short_title}, {year})",
@@ -51,6 +63,8 @@ def main():
             title_words=args.title_words,
             undo_log_path=args.undo_log,
             template=args.template,
+            title_spacing=args.title_spacing,
+            title_case=args.title_case,
         )
     elif args.cmd == "watch":
         watch_and_rename(
@@ -60,6 +74,8 @@ def main():
             undo_log_path=args.undo_log,
             interval=args.interval,
             template=args.template,
+            title_spacing=args.title_spacing,
+            title_case=args.title_case,
         )
     elif args.cmd == "undo":
         undo_dry_run = args.dry_run or not args.apply

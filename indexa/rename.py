@@ -11,9 +11,11 @@ import requests
 from pypdf import PdfReader
 
 
-def _sanitize(s: str, max_len: int = 80) -> str:
+def _sanitize(s: str, max_len: int = 80, keep_spaces: bool = False) -> str:
     s = re.sub(r"[^A-Za-z0-9 _.-]", "", s)
-    s = re.sub(r"\s+", " ", s).strip().replace(" ", "")
+    s = re.sub(r"\s+", " ", s).strip()
+    if not keep_spaces:
+        s = s.replace(" ", "")
     return s[:max_len] if s else "Untitled"
 
 
@@ -198,9 +200,31 @@ def _parse_crossref_message(msg: dict) -> tuple[Optional[str], Optional[str], Op
     return author, title, year
 
 
-def _short_title(title: str, max_words: int = 8) -> str:
+def _apply_title_case_mode(text: str, mode: str = "original") -> str:
+    mode = (mode or "original").lower()
+    if mode == "lower":
+        return text.lower()
+    if mode == "title":
+        return text.title()
+    if mode == "sentence":
+        s = text.strip().lower()
+        return (s[:1].upper() + s[1:]) if s else s
+    return text
+
+
+def _short_title(title: str, max_words: int = 8, spacing: str = "compact", case_mode: str = "original") -> str:
     words = re.findall(r"[A-Za-z0-9]+", title)
-    return "".join(words[:max_words]) or "Untitled"
+    base = " ".join(words[:max_words]) or "Untitled"
+    base = _apply_title_case_mode(base, case_mode)
+
+    spacing = (spacing or "compact").lower()
+    sep = ""
+    if spacing == "spaces":
+        sep = " "
+    elif spacing == "underscore":
+        sep = "_"
+
+    return sep.join(base.split())
 
 
 def _name_token_last(s: str) -> str:
@@ -238,10 +262,16 @@ def _build_filename(
     year: Optional[str],
     title_words: int = 8,
     template: str = "{first_author_last}-{short_title}-{year}",
+    title_spacing: str = "compact",
+    title_case: str = "original",
 ) -> str:
+    keep_spaces = (title_spacing or "compact").lower() == "spaces"
     values = {
         "first_author_last": _sanitize(_first_author_last(author)),
-        "short_title": _sanitize(_short_title(title or "Untitled", max_words=title_words)),
+        "short_title": _sanitize(
+            _short_title(title or "Untitled", max_words=title_words, spacing=title_spacing, case_mode=title_case),
+            keep_spaces=keep_spaces,
+        ),
         "year": _sanitize(year or "n.d"),
     }
 
@@ -253,7 +283,7 @@ def _build_filename(
     if "{" in out or "}" in out:
         out = f"{values['first_author_last']}-{values['short_title']}-{values['year']}"
 
-    out = _sanitize(out, max_len=180)
+    out = _sanitize(out, max_len=180, keep_spaces=keep_spaces)
     return f"{out}.pdf"
 
 
@@ -294,6 +324,8 @@ def process_file(
     title_words: int = 8,
     undo_log_path: str = ".indexa-renames.jsonl",
     template: str = "{first_author_last}-{short_title}-{year}",
+    title_spacing: str = "compact",
+    title_case: str = "original",
 ) -> bool:
     base = pdf.parent
     log_path = _resolve_undo_log(base, undo_log_path)
@@ -337,7 +369,15 @@ def process_file(
         print(f"SKIP  {pdf.name} (low-confidence metadata)")
         return False
 
-    new_name = _build_filename(author, title, year, title_words=title_words, template=template)
+    new_name = _build_filename(
+        author,
+        title,
+        year,
+        title_words=title_words,
+        template=template,
+        title_spacing=title_spacing,
+        title_case=title_case,
+    )
     target = _dedupe_path(pdf.with_name(new_name))
 
     if target.name == pdf.name:
@@ -358,6 +398,8 @@ def scan_and_rename(
     title_words: int = 8,
     undo_log_path: str = ".indexa-renames.jsonl",
     template: str = "{first_author_last}-{short_title}-{year}",
+    title_spacing: str = "compact",
+    title_case: str = "original",
 ) -> None:
     base = Path(folder).expanduser().resolve()
     pdfs = sorted(base.glob("*.pdf"))
@@ -373,6 +415,8 @@ def scan_and_rename(
             title_words=title_words,
             undo_log_path=undo_log_path,
             template=template,
+            title_spacing=title_spacing,
+            title_case=title_case,
         )
 
 
@@ -447,6 +491,8 @@ def watch_and_rename(
     undo_log_path: str = ".indexa-renames.jsonl",
     interval: float = 3.0,
     template: str = "{first_author_last}-{short_title}-{year}",
+    title_spacing: str = "compact",
+    title_case: str = "original",
 ) -> None:
     base = Path(folder).expanduser().resolve()
     print(f"Watching {base} for PDFs... (dry_run={dry_run})")
@@ -472,6 +518,8 @@ def watch_and_rename(
                             title_words=title_words,
                             undo_log_path=undo_log_path,
                             template=template,
+                            title_spacing=title_spacing,
+                            title_case=title_case,
                         )
                 time.sleep(interval)
         except KeyboardInterrupt:
@@ -510,6 +558,8 @@ def watch_and_rename(
                 title_words=title_words,
                 undo_log_path=undo_log_path,
                 template=template,
+                title_spacing=title_spacing,
+                title_case=title_case,
             )
 
     observer = Observer()

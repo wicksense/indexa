@@ -199,11 +199,15 @@ class IndexaWindow(QtWidgets.QMainWindow):
 
         opts_row = QtWidgets.QHBoxLayout()
         self.title_words = QtWidgets.QSpinBox(); self.title_words.setRange(3, 20); self.title_words.setValue(8)
+        self.title_spacing = QtWidgets.QComboBox(); self.title_spacing.addItems(["compact", "spaces", "underscore"])
+        self.title_case = QtWidgets.QComboBox(); self.title_case.addItems(["original", "sentence", "lower", "title"])
         self.steps_spin = QtWidgets.QSpinBox(); self.steps_spin.setRange(0, 100000); self.steps_spin.setValue(0); self.steps_spin.setSpecialValueText("All")
         self.interval_spin = QtWidgets.QDoubleSpinBox(); self.interval_spin.setRange(0.5, 600.0); self.interval_spin.setValue(3.0)
         self.undo_log = QtWidgets.QLineEdit(".indexa-renames.jsonl")
 
         opts_row.addWidget(QtWidgets.QLabel("Title words")); opts_row.addWidget(self.title_words)
+        opts_row.addWidget(QtWidgets.QLabel("Title spacing")); opts_row.addWidget(self.title_spacing)
+        opts_row.addWidget(QtWidgets.QLabel("Title case")); opts_row.addWidget(self.title_case)
         opts_row.addWidget(QtWidgets.QLabel("Undo steps")); opts_row.addWidget(self.steps_spin)
         self.interval_label = QtWidgets.QLabel("Watch interval (s, polling)")
         opts_row.addWidget(self.interval_label); opts_row.addWidget(self.interval_spin)
@@ -365,6 +369,8 @@ class IndexaWindow(QtWidgets.QMainWindow):
                 title_words=self.title_words.value(),
                 undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl",
                 template=self.current_template(),
+                title_spacing=self.title_spacing.currentText(),
+                title_case=self.title_case.currentText(),
             )
         )
         self._append(out or "(no output)")
@@ -393,6 +399,8 @@ class IndexaWindow(QtWidgets.QMainWindow):
                     title_words=self.title_words.value(),
                     undo_log_path=self.undo_log.text().strip() or ".indexa-renames.jsonl",
                     template=self.current_template(),
+                    title_spacing=self.title_spacing.currentText(),
+                    title_case=self.title_case.currentText(),
                 )
 
             text = self._capture_stdout(_one)

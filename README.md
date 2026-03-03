@@ -47,6 +47,8 @@ GUI includes:
 - system tray support (minimize to tray)
 - Launch on startup toggle (Windows)
 - simple filename style presets + advanced custom template
+- title spacing options (compact / spaces / underscore)
+- title casing options (original / sentence / lower / title)
 
 ### GUI screenshots
 
@@ -84,6 +86,7 @@ Template tokens:
 ```bash
 python -m indexa.cli scan <folder> --dry-run
 python -m indexa.cli scan <folder> --apply
+python -m indexa.cli scan <folder> --apply --title-spacing spaces --title-case sentence
 ```
 
 ### Watch folder continuously
